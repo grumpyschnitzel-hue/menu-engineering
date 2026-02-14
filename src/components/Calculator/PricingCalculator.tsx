@@ -14,26 +14,16 @@ interface Props {
 }
 
 export default function PricingCalculator({ items }: Props) {
-  const [tab, setTab] = useState<'forward' | 'reverse'>('forward')
-
   return (
-    <div className="card">
-      <h3 className="font-display text-lg font-bold uppercase mb-4">Pricing Calculator</h3>
-      <div className="flex gap-1 mb-6 border-b border-navy-border">
-        <button
-          className={`tab-button ${tab === 'forward' ? 'active' : ''}`}
-          onClick={() => setTab('forward')}
-        >
-          Price a New Item
-        </button>
-        <button
-          className={`tab-button ${tab === 'reverse' ? 'active' : ''}`}
-          onClick={() => setTab('reverse')}
-        >
-          Adjust Existing Item
-        </button>
+    <div className="space-y-6">
+      <div className="card">
+        <h3 className="font-display text-lg font-bold uppercase mb-4">Price a New Item</h3>
+        <ForwardCalculator />
       </div>
-      {tab === 'forward' ? <ForwardCalculator /> : <ReverseCalculator items={items} />}
+      <div className="card">
+        <h3 className="font-display text-lg font-bold uppercase mb-4">Adjust Existing Item</h3>
+        <ReverseCalculator items={items} />
+      </div>
     </div>
   )
 }

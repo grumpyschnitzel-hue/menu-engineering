@@ -3,8 +3,11 @@ import {
   calculateBenchmarks,
   classifyItem,
   classifyAllItems,
+  getClassificationSummaries,
   calculateForwardPricing,
   calculateReversePricing,
+  formatCurrency,
+  formatPercent,
 } from '../lib/calculations'
 
 describe('calculateItemMetrics', () => {
@@ -186,5 +189,143 @@ describe('calculateReversePricing', () => {
       newPrice: 35,
     })
     expect(result.suggestedAction).toContain('improved')
+  })
+
+  it('handles both new price and new cost at once', () => {
+    const result = calculateReversePricing({
+      currentPrice: 30,
+      currentFoodCost: 10,
+      newPrice: 35,
+      newFoodCost: 12,
+    })
+    expect(result.newMargin).toBe(23) // 35 - 12
+    expect(result.marginChangeDollars).toBe(3) // 23 - 20
+  })
+
+  it('returns null monthly impact when no units provided', () => {
+    const result = calculateReversePricing({
+      currentPrice: 30,
+      currentFoodCost: 10,
+      newFoodCost: 12,
+    })
+    expect(result.monthlyProfitImpact).toBeNull()
+  })
+
+  it('calculates new food cost percent correctly', () => {
+    const result = calculateReversePricing({
+      currentPrice: 30,
+      currentFoodCost: 10,
+      newFoodCost: 15,
+    })
+    expect(result.newFoodCostPercent).toBe(50) // 15/30 * 100
+  })
+})
+
+describe('calculateBenchmarks', () => {
+  it('returns zeros for empty array', () => {
+    const result = calculateBenchmarks([])
+    expect(result.avgContributionMargin).toBe(0)
+    expect(result.avgSalesMixPercent).toBe(0)
+    expect(result.totalUnitsSold).toBe(0)
+  })
+
+  it('calculates average contribution margin', () => {
+    const items = [
+      { id: '1', name: 'A', category: 'Mains', menuPrice: 30, foodCost: 10, unitsSold: 100, periodDays: 30, contributionMargin: 20, foodCostPercent: 33.33, totalProfit: 2000, salesMixPercent: 50 },
+      { id: '2', name: 'B', category: 'Mains', menuPrice: 20, foodCost: 10, unitsSold: 100, periodDays: 30, contributionMargin: 10, foodCostPercent: 50, totalProfit: 1000, salesMixPercent: 50 },
+    ]
+    const result = calculateBenchmarks(items)
+    expect(result.avgContributionMargin).toBe(15) // (20 + 10) / 2
+  })
+
+  it('calculates total units sold', () => {
+    const items = [
+      { id: '1', name: 'A', category: 'Mains', menuPrice: 30, foodCost: 10, unitsSold: 200, periodDays: 30, contributionMargin: 20, foodCostPercent: 33.33, totalProfit: 4000, salesMixPercent: 40 },
+      { id: '2', name: 'B', category: 'Mains', menuPrice: 20, foodCost: 10, unitsSold: 300, periodDays: 30, contributionMargin: 10, foodCostPercent: 50, totalProfit: 3000, salesMixPercent: 60 },
+    ]
+    const result = calculateBenchmarks(items)
+    expect(result.totalUnitsSold).toBe(500)
+  })
+})
+
+describe('getClassificationSummaries', () => {
+  const items = [
+    { id: '1', name: 'Star 1', category: 'Mains', menuPrice: 40, foodCost: 10, unitsSold: 300, periodDays: 30, contributionMargin: 30, foodCostPercent: 25, totalProfit: 9000, salesMixPercent: 30, classification: 'star' as const, recommendedAction: 'Keep' },
+    { id: '2', name: 'Star 2', category: 'Mains', menuPrice: 35, foodCost: 10, unitsSold: 200, periodDays: 30, contributionMargin: 25, foodCostPercent: 28.57, totalProfit: 5000, salesMixPercent: 20, classification: 'star' as const, recommendedAction: 'Keep' },
+    { id: '3', name: 'Dog 1', category: 'Mains', menuPrice: 15, foodCost: 10, unitsSold: 50, periodDays: 30, contributionMargin: 5, foodCostPercent: 66.67, totalProfit: 250, salesMixPercent: 5, classification: 'dog' as const, recommendedAction: 'Evaluate' },
+  ]
+
+  it('returns summaries for all 4 classifications', () => {
+    const result = getClassificationSummaries(items)
+    expect(result).toHaveLength(4)
+    expect(result.map(s => s.classification)).toEqual(['star', 'plowhorse', 'puzzle', 'dog'])
+  })
+
+  it('counts items per classification', () => {
+    const result = getClassificationSummaries(items)
+    const starSummary = result.find(s => s.classification === 'star')!
+    const dogSummary = result.find(s => s.classification === 'dog')!
+    const plowSummary = result.find(s => s.classification === 'plowhorse')!
+
+    expect(starSummary.count).toBe(2)
+    expect(dogSummary.count).toBe(1)
+    expect(plowSummary.count).toBe(0)
+  })
+
+  it('sums total profit per classification', () => {
+    const result = getClassificationSummaries(items)
+    const starSummary = result.find(s => s.classification === 'star')!
+
+    expect(starSummary.totalProfit).toBe(14000) // 9000 + 5000
+  })
+
+  it('includes items array per classification', () => {
+    const result = getClassificationSummaries(items)
+    const starSummary = result.find(s => s.classification === 'star')!
+
+    expect(starSummary.items).toHaveLength(2)
+    expect(starSummary.items[0].name).toBe('Star 1')
+  })
+
+  it('handles empty items array', () => {
+    const result = getClassificationSummaries([])
+    expect(result).toHaveLength(4)
+    result.forEach(s => {
+      expect(s.count).toBe(0)
+      expect(s.totalProfit).toBe(0)
+      expect(s.items).toEqual([])
+    })
+  })
+})
+
+describe('formatCurrency', () => {
+  it('formats whole numbers', () => {
+    expect(formatCurrency(20)).toBe('$20.00')
+  })
+
+  it('formats decimals to 2 places', () => {
+    expect(formatCurrency(15.5)).toBe('$15.50')
+  })
+
+  it('rounds to 2 decimal places', () => {
+    expect(formatCurrency(33.333)).toBe('$33.33')
+  })
+
+  it('formats zero', () => {
+    expect(formatCurrency(0)).toBe('$0.00')
+  })
+})
+
+describe('formatPercent', () => {
+  it('formats with one decimal place', () => {
+    expect(formatPercent(33.33)).toBe('33.3%')
+  })
+
+  it('formats whole numbers', () => {
+    expect(formatPercent(50)).toBe('50.0%')
+  })
+
+  it('formats zero', () => {
+    expect(formatPercent(0)).toBe('0.0%')
   })
 })
