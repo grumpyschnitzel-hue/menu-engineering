@@ -9,6 +9,7 @@ import {
   DIETARY_TAGS,
 } from '@/lib/types'
 import { generateDescriptionWithPosition } from '@/lib/descriptions'
+import { useToast } from '@/components/Toast'
 
 interface Props {
   items: MenuItem[]
@@ -17,11 +18,14 @@ interface Props {
 }
 
 export default function DescriptionGenerator({ items, emailUnlocked, onUnlock }: Props) {
+  const { showToast } = useToast()
   const [showGate, setShowGate] = useState(false)
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [gateError, setGateError] = useState('')
 
+  const [useCustomItem, setUseCustomItem] = useState(false)
+  const [customItemName, setCustomItemName] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string>('')
   const [input, setInput] = useState<DescriptionInput>({
     cookingMethod: '',
@@ -62,7 +66,7 @@ export default function DescriptionGenerator({ items, emailUnlocked, onUnlock }:
           body: JSON.stringify({
             api_key: apiKey,
             email: email.trim(),
-            tags: ['menu-optimizer-user'],
+            tags: [16452628],
           }),
         })
       }
@@ -78,8 +82,31 @@ export default function DescriptionGenerator({ items, emailUnlocked, onUnlock }:
   }
 
   function handleGenerate() {
-    const item = items.find(i => i.id === selectedItemId)
-    if (!item || !input.cookingMethod || !input.keyIngredient) return
+    if (!input.cookingMethod || !input.keyIngredient) return
+
+    let item: MenuItem
+    if (useCustomItem) {
+      if (!customItemName.trim()) return
+      item = {
+        id: 'custom',
+        name: customItemName.trim(),
+        category: 'Custom',
+        menuPrice: 0,
+        foodCost: 0,
+        unitsSold: 0,
+        periodDays: 30,
+        contributionMargin: 0,
+        foodCostPercent: 0,
+        totalProfit: 0,
+        salesMixPercent: 0,
+        classification: 'puzzle',
+        recommendedAction: 'New item — optimize description for visibility',
+      }
+    } else {
+      const found = items.find(i => i.id === selectedItemId)
+      if (!found) return
+      item = found
+    }
 
     const result = generateDescriptionWithPosition(input, item, allStars)
     setGeneratedDesc(result.description)
@@ -164,20 +191,45 @@ export default function DescriptionGenerator({ items, emailUnlocked, onUnlock }:
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <label className="input-label">Select Item</label>
-            <select
-              className="select-field"
-              value={selectedItemId}
-              onChange={e => setSelectedItemId(e.target.value)}
-            >
-              <option value="">— Choose an item —</option>
-              {prioritizedItems.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.classification === 'puzzle' ? '🧩 ' : item.classification === 'star' ? '⭐ ' : ''}
-                  {item.name} ({item.category})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="input-label mb-0">
+                {useCustomItem ? 'Custom Item Name' : 'Select Item'}
+              </label>
+              <button
+                className="text-xs text-gold hover:text-white transition-colors"
+                onClick={() => {
+                  setUseCustomItem(!useCustomItem)
+                  setSelectedItemId('')
+                  setCustomItemName('')
+                  setGeneratedDesc('')
+                }}
+              >
+                {useCustomItem ? 'Select existing' : 'Custom item'}
+              </button>
+            </div>
+            {useCustomItem ? (
+              <input
+                type="text"
+                className="input-field"
+                placeholder="e.g. Truffle Mushroom Risotto"
+                value={customItemName}
+                onChange={e => setCustomItemName(e.target.value)}
+              />
+            ) : (
+              <select
+                className="select-field"
+                value={selectedItemId}
+                onChange={e => setSelectedItemId(e.target.value)}
+              >
+                <option value="">— Choose an item —</option>
+                {prioritizedItems.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.classification === 'puzzle' ? '🧩 ' : item.classification === 'star' ? '⭐ ' : ''}
+                    {item.name} ({item.category})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -256,7 +308,12 @@ export default function DescriptionGenerator({ items, emailUnlocked, onUnlock }:
 
           <button
             className="btn-gold w-full"
-            disabled={!selectedItemId || !input.cookingMethod || !input.keyIngredient}
+            disabled={
+              (!useCustomItem && !selectedItemId) ||
+              (useCustomItem && !customItemName.trim()) ||
+              !input.cookingMethod ||
+              !input.keyIngredient
+            }
             onClick={handleGenerate}
           >
             Generate Description
@@ -272,7 +329,7 @@ export default function DescriptionGenerator({ items, emailUnlocked, onUnlock }:
                 <div className="mt-4 flex gap-3">
                   <button
                     className="text-xs text-gold hover:text-white transition-colors"
-                    onClick={() => navigator.clipboard.writeText(generatedDesc)}
+                    onClick={() => { navigator.clipboard.writeText(generatedDesc); showToast('Copied to clipboard') }}
                   >
                     Copy to Clipboard
                   </button>

@@ -141,3 +141,117 @@ export const CLASSIFICATION_COLORS: Record<Classification, string> = {
   puzzle: '#8B5CF6',
   dog: '#6B7280',
 }
+
+// ===== Phase 2: Psychology Engine Types =====
+
+export interface ChoiceAlert {
+  category: string
+  itemCount: number
+  threshold: number
+  severity: 'warning' | 'critical'
+  message: string
+  cutRecommendations: { item: MenuItem; reason: string }[]
+}
+
+export type BadgeType = 'most-popular' | 'chef-pick'
+
+export interface BadgeRecommendation {
+  item: MenuItem
+  badgeType: BadgeType
+  badgeText: string
+  reason: string
+}
+
+export interface CategoryBadges {
+  category: string
+  badges: BadgeRecommendation[]
+}
+
+export interface AnchorAnalysis {
+  category: string
+  anchorItem: MenuItem | null
+  targetItems: { item: MenuItem; contrastGap: number; contrastPercent: number; recommendation: string }[]
+  hasEffectiveAnchor: boolean
+  warning: string | null
+}
+
+export interface DecoyOpportunity {
+  category: string
+  decoyItem: MenuItem
+  targetItem: MenuItem
+  priceGapPercent: number
+  effectiveness: 'strong' | 'moderate' | 'weak'
+  explanation: string
+}
+
+export interface DecoyAnalysis {
+  category: string
+  opportunities: DecoyOpportunity[]
+  recommendation: string | null
+}
+
+export interface DescriptionScoreCriteria {
+  sensoryWords: { score: number; maxScore: number; found: string[] }
+  geographicOrigin: { score: number; maxScore: number; found: boolean }
+  preparationMethod: { score: number; maxScore: number; found: string[] }
+  emotionalLanguage: { score: number; maxScore: number; found: string[] }
+  optimalLength: { score: number; maxScore: number; wordCount: number }
+  noPricePain: { score: number; maxScore: number; clean: boolean }
+}
+
+export interface DescriptionScore {
+  totalScore: number
+  maxScore: number
+  percentage: number
+  criteria: DescriptionScoreCriteria
+  improvements: string[]
+}
+
+export type PlacementZone = 'golden-center' | 'golden-top-right' | 'golden-top-left' | 'first-in-category' | 'last-in-category' | 'middle' | 'bottom' | 'remove'
+
+export interface PlacementRecommendation {
+  item: MenuItem
+  zone: PlacementZone
+  priority: number
+  reason: string
+}
+
+export interface CategoryPlacement {
+  category: string
+  placements: PlacementRecommendation[]
+}
+
+export type SimulationAction = 'price-change' | 'item-removal' | 'repositioning' | 'description-upgrade'
+
+export interface SimulationInput {
+  action: SimulationAction
+  itemId: string
+  newPrice?: number
+  salesChangePercent?: number
+}
+
+export interface SimulationResult {
+  action: SimulationAction
+  itemName: string
+  currentMonthlyProfit: number
+  projectedMonthlyProfit: number
+  monthlyDelta: number
+  annualDelta: number
+  explanation: string
+}
+
+export interface MenuHealthItem {
+  id: string
+  label: string
+  category: 'layout' | 'pricing' | 'descriptions' | 'psychology' | 'data'
+  autoScored: boolean
+  passed: boolean
+  details: string
+}
+
+export interface MenuHealthScore {
+  items: MenuHealthItem[]
+  totalScore: number
+  maxScore: number
+  percentage: number
+}

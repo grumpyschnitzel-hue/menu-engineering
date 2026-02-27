@@ -108,6 +108,20 @@ export function useMenuData() {
     })
   }, [])
 
+  const updateItemCosts = useCallback((updates: { id: string; foodCost: number }[]) => {
+    setProject(prev => {
+      const updated = {
+        ...prev,
+        items: prev.items.map(item => {
+          const costUpdate = updates.find(u => u.id === item.id)
+          return costUpdate ? { ...item, foodCost: costUpdate.foodCost } : item
+        }),
+      }
+      saveProject(updated)
+      return updated
+    })
+  }, [])
+
   const loadProjectData = useCallback((data: ProjectData) => {
     persist(data)
   }, [persist])
@@ -139,6 +153,7 @@ export function useMenuData() {
     clearAll,
     setBenchmarkMethod,
     setEmailUnlocked,
+    updateItemCosts,
     loadProjectData,
   }
 }

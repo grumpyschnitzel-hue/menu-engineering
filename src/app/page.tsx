@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMenuData } from '@/hooks/useMenuData'
 import ManualEntryForm from '@/components/DataEntry/ManualEntryForm'
-import CSVUpload from '@/components/DataEntry/CSVUpload'
+import FileUpload from '@/components/DataEntry/FileUpload'
 import ItemList from '@/components/DataEntry/ItemList'
 import SummaryCards from '@/components/Matrix/SummaryCards'
 import ScatterPlotChart from '@/components/Matrix/ScatterPlot'
@@ -11,10 +11,19 @@ import ItemDataTable from '@/components/Matrix/ItemDataTable'
 import PricingCalculator from '@/components/Calculator/PricingCalculator'
 import DescriptionGenerator from '@/components/Descriptions/DescriptionGenerator'
 import ExportPanel from '@/components/Export/ExportPanel'
+import ChoiceAlerts from '@/components/Psychology/ChoiceAlerts'
+import SocialProofBadges from '@/components/Psychology/SocialProofBadges'
+import AnchoringAdvisor from '@/components/Psychology/AnchoringAdvisor'
+import DecoyDetector from '@/components/Psychology/DecoyDetector'
+import DescriptionScorer from '@/components/Psychology/DescriptionScorer'
+import PlacementAdvisor from '@/components/Psychology/PlacementAdvisor'
+import RevenueSimulator from '@/components/Psychology/RevenueSimulator'
+import MenuHealthChecklist from '@/components/Psychology/MenuHealthChecklist'
 import SampleDataLoader from '@/components/SampleDataLoader'
-import { MenuItemInput } from '@/lib/types'
+import { ToastProvider } from '@/components/Toast'
+import { MenuItemInput, Classification } from '@/lib/types'
 
-type Tab = 'data' | 'matrix' | 'calculator' | 'descriptions' | 'export'
+type Tab = 'data' | 'matrix' | 'calculator' | 'descriptions' | 'psychology' | 'export'
 
 export default function MenuEngineeringPage() {
   const {
@@ -32,11 +41,14 @@ export default function MenuEngineeringPage() {
     clearAll,
     setBenchmarkMethod,
     setEmailUnlocked,
+    updateItemCosts,
     loadProjectData,
   } = useMenuData()
 
   const [activeTab, setActiveTab] = useState<Tab>('data')
-  const [dataEntryMode, setDataEntryMode] = useState<'manual' | 'csv'>('manual')
+  const [dataEntryMode, setDataEntryMode] = useState<'manual' | 'file'>('manual')
+  const [matrixFilter, setMatrixFilter] = useState<Classification | null>(null)
+  const [showScatterPlot, setShowScatterPlot] = useState(false)
 
   const hasItems = project.items.length > 0
 
@@ -50,13 +62,32 @@ export default function MenuEngineeringPage() {
 
   if (!loaded) {
     return (
-      <div className="pt-24 pb-12 px-6 flex items-center justify-center min-h-screen">
-        <div className="text-steel text-sm">Loading...</div>
+      <div className="pt-24 pb-12 px-6">
+        <div className="max-w-[1200px] mx-auto">
+          {/* Skeleton hero */}
+          <div className="text-center mb-10">
+            <div className="skeleton h-3 w-32 mx-auto mb-4" />
+            <div className="skeleton h-10 w-80 mx-auto mb-3" />
+            <div className="skeleton h-4 w-64 mx-auto" />
+          </div>
+          {/* Skeleton tabs */}
+          <div className="flex gap-3 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="skeleton h-8 w-24 rounded" />
+            ))}
+          </div>
+          {/* Skeleton content */}
+          <div className="space-y-4">
+            <div className="skeleton h-48 w-full rounded-xl" />
+            <div className="skeleton h-32 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
+    <ToastProvider>
     <div className="pt-24 pb-12 px-6">
       <div className="max-w-[1200px] mx-auto">
         {/* Hero */}
@@ -75,37 +106,51 @@ export default function MenuEngineeringPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-navy-border mb-8 overflow-x-auto no-print">
+        <div
+          className="tab-bar flex gap-1 border-b border-navy-border mb-8 overflow-x-auto no-print"
+          role="tablist"
+          aria-label="Menu Engineering sections"
+        >
           {([
             { key: 'data', label: 'Data Entry', count: project.items.length },
             { key: 'matrix', label: 'Matrix', disabled: !hasItems },
             { key: 'calculator', label: 'Calculator' },
             { key: 'descriptions', label: 'Descriptions', disabled: !hasItems },
+            { key: 'psychology', label: 'Psychology', disabled: !hasItems },
             { key: 'export', label: 'Export', disabled: !hasItems },
-          ] as const).map(tab => (
-            <button
-              key={tab.key}
-              className={`tab-button whitespace-nowrap ${activeTab === tab.key ? 'active' : ''} ${
-                'disabled' in tab && tab.disabled ? 'opacity-40 cursor-not-allowed' : ''
-              }`}
-              onClick={() => {
-                if ('disabled' in tab && tab.disabled) return
-                setActiveTab(tab.key)
-              }}
-            >
-              {tab.label}
-              {'count' in tab && tab.count != null && tab.count > 0 && (
-                <span className="ml-1.5 text-xs bg-gold/20 text-gold px-1.5 py-0.5 rounded-full">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+          ] as const).map(tab => {
+            const isDisabled = 'disabled' in tab && tab.disabled
+            return (
+              <button
+                key={tab.key}
+                role="tab"
+                id={`tab-${tab.key}`}
+                aria-selected={activeTab === tab.key}
+                aria-controls={`panel-${tab.key}`}
+                aria-disabled={isDisabled || undefined}
+                title={isDisabled ? 'Add menu items first' : undefined}
+                className={`tab-button whitespace-nowrap ${activeTab === tab.key ? 'active' : ''} ${
+                  isDisabled ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
+                onClick={() => {
+                  if (isDisabled) return
+                  setActiveTab(tab.key)
+                }}
+              >
+                {tab.label}
+                {'count' in tab && tab.count != null && tab.count > 0 && (
+                  <span className="ml-1.5 text-xs bg-gold/20 text-gold px-1.5 py-0.5 rounded-full">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         {/* Tab Content */}
         {activeTab === 'data' && (
-          <div className="space-y-6">
+          <div className="tab-content space-y-6" role="tabpanel" id="panel-data" aria-labelledby="tab-data">
             {!hasItems && (
               <SampleDataLoader
                 onLoad={replaceItems}
@@ -113,26 +158,36 @@ export default function MenuEngineeringPage() {
               />
             )}
 
-            <div className="flex gap-2 no-print">
-              <button
-                className={`text-sm px-3 py-1.5 rounded ${dataEntryMode === 'manual' ? 'bg-gold/20 text-gold' : 'text-steel hover:text-white'}`}
-                onClick={() => setDataEntryMode('manual')}
-              >
-                Manual Entry
-              </button>
-              <button
-                className={`text-sm px-3 py-1.5 rounded ${dataEntryMode === 'csv' ? 'bg-gold/20 text-gold' : 'text-steel hover:text-white'}`}
-                onClick={() => setDataEntryMode('csv')}
-              >
-                CSV Upload
-              </button>
+            <div className="flex items-center justify-between no-print">
+              <div className="flex gap-2">
+                <button
+                  className={`text-sm px-3 py-1.5 rounded ${dataEntryMode === 'manual' ? 'bg-gold/20 text-gold' : 'text-steel hover:text-white'}`}
+                  onClick={() => setDataEntryMode('manual')}
+                >
+                  Manual Entry
+                </button>
+                <button
+                  className={`text-sm px-3 py-1.5 rounded ${dataEntryMode === 'file' ? 'bg-gold/20 text-gold' : 'text-steel hover:text-white'}`}
+                  onClick={() => setDataEntryMode('file')}
+                >
+                  File Upload
+                </button>
+              </div>
+              {hasItems && (
+                <SampleDataLoader
+                  onLoad={replaceItems}
+                  hasItems={hasItems}
+                />
+              )}
             </div>
 
             {dataEntryMode === 'manual' ? (
               <ManualEntryForm onAdd={addItem} periodDays={30} />
             ) : (
-              <CSVUpload
+              <FileUpload
                 onImport={handleCSVImport}
+                onUpdateCosts={updateItemCosts}
+                existingItems={project.items}
                 existingCount={project.items.length}
                 periodDays={30}
               />
@@ -159,12 +214,30 @@ export default function MenuEngineeringPage() {
         )}
 
         {activeTab === 'matrix' && (
-          <div className="space-y-6">
+          <div className="tab-content space-y-6" role="tabpanel" id="panel-matrix" aria-labelledby="tab-matrix">
             <div className="flex items-center justify-between no-print">
               <div className="text-sm text-steel">
                 {project.items.length} items analyzed
+                {matrixFilter && (
+                  <button
+                    className="ml-3 text-xs text-gold hover:text-white transition-colors"
+                    onClick={() => setMatrixFilter(null)}
+                  >
+                    Clear filter
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-3">
+                <button
+                  className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                    showScatterPlot
+                      ? 'border-gold text-gold'
+                      : 'border-navy-border text-steel hover:text-white'
+                  }`}
+                  onClick={() => setShowScatterPlot(prev => !prev)}
+                >
+                  {showScatterPlot ? 'Hide' : 'Show'} Chart
+                </button>
                 <span className="text-xs text-steel">Benchmark:</span>
                 <select
                   className="select-field text-xs py-1.5 w-auto"
@@ -177,30 +250,87 @@ export default function MenuEngineeringPage() {
               </div>
             </div>
 
-            <SummaryCards summaries={summaries} />
-            <ScatterPlotChart items={classifiedItems} benchmarks={benchmarks} />
-            <ItemDataTable items={classifiedItems} categories={categories} />
+            <SummaryCards
+              summaries={summaries}
+              activeFilter={matrixFilter}
+              onFilterChange={setMatrixFilter}
+            />
+            {showScatterPlot && (
+              <ScatterPlotChart
+                items={matrixFilter ? classifiedItems.filter(i => i.classification === matrixFilter) : classifiedItems}
+                benchmarks={benchmarks}
+              />
+            )}
+            <ItemDataTable
+              items={matrixFilter ? classifiedItems.filter(i => i.classification === matrixFilter) : classifiedItems}
+              categories={categories}
+            />
           </div>
         )}
 
         {activeTab === 'calculator' && (
+          <div className="tab-content" role="tabpanel" id="panel-calculator" aria-labelledby="tab-calculator">
           <PricingCalculator items={classifiedItems} />
+          </div>
         )}
 
         {activeTab === 'descriptions' && (
+          <div className="tab-content" role="tabpanel" id="panel-descriptions" aria-labelledby="tab-descriptions">
           <DescriptionGenerator
             items={classifiedItems}
             emailUnlocked={project.emailUnlocked}
             onUnlock={setEmailUnlocked}
           />
+          </div>
+        )}
+
+        {activeTab === 'psychology' && (
+          <div className="tab-content space-y-8" role="tabpanel" id="panel-psychology" aria-labelledby="tab-psychology">
+            <div className="text-center mb-2">
+              <div className="font-mono text-xs text-gold tracking-widest uppercase mb-2">
+                Psychology-Powered Advisory
+              </div>
+              <p className="text-steel text-sm max-w-lg mx-auto">
+                Research-backed recommendations from Cornell, NRA, and behavioral science studies.
+                Each insight includes the source research and projected revenue impact.
+              </p>
+            </div>
+
+            <MenuHealthChecklist items={classifiedItems} />
+
+            <div className="border-t border-navy-border pt-8">
+              <div className="font-mono text-xs text-gold tracking-widest uppercase mb-6">
+                Detailed Analysis
+              </div>
+              <div className="space-y-8">
+                <ChoiceAlerts items={classifiedItems} />
+                <SocialProofBadges items={classifiedItems} />
+                <AnchoringAdvisor items={classifiedItems} />
+                <DecoyDetector items={classifiedItems} />
+                <PlacementAdvisor items={classifiedItems} />
+              </div>
+            </div>
+
+            <div className="border-t border-navy-border pt-8">
+              <div className="font-mono text-xs text-gold tracking-widest uppercase mb-6">
+                Tools
+              </div>
+              <div className="space-y-8">
+                <DescriptionScorer />
+                <RevenueSimulator items={classifiedItems} />
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'export' && (
+          <div className="tab-content" role="tabpanel" id="panel-export" aria-labelledby="tab-export">
           <ExportPanel
             items={classifiedItems}
             project={project}
             onLoadProject={loadProjectData}
           />
+          </div>
         )}
 
         {/* Bottom CTA */}
@@ -225,5 +355,6 @@ export default function MenuEngineeringPage() {
         )}
       </div>
     </div>
+    </ToastProvider>
   )
 }

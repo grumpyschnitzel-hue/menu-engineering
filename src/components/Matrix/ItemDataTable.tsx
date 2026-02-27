@@ -58,7 +58,12 @@ export default function ItemDataTable({ items, categories }: Props) {
 
   function SortIndicator({ column }: { column: SortKey }) {
     if (sortKey !== column) return null
-    return <span className="ml-1 text-gold">{sortDir === 'asc' ? '↑' : '↓'}</span>
+    return <span className="ml-1 text-gold" aria-hidden="true">{sortDir === 'asc' ? '↑' : '↓'}</span>
+  }
+
+  function sortAria(column: SortKey): 'ascending' | 'descending' | 'none' {
+    if (sortKey !== column) return 'none'
+    return sortDir === 'asc' ? 'ascending' : 'descending'
   }
 
   return (
@@ -82,29 +87,30 @@ export default function ItemDataTable({ items, categories }: Props) {
             onChange={e => setFilterClassification(e.target.value as Classification | '')}
           >
             <option value="">All Types</option>
-            <option value="star">⭐ Stars</option>
-            <option value="plowhorse">🐴 Plowhorses</option>
-            <option value="puzzle">🧩 Puzzles</option>
-            <option value="dog">🐕 Dogs</option>
+            <option value="star">Stars</option>
+            <option value="plowhorse">Plowhorses</option>
+            <option value="puzzle">Puzzles</option>
+            <option value="dog">Dogs</option>
           </select>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Desktop table — hidden on mobile */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
-              <th onClick={() => toggleSort('name')}>Name<SortIndicator column="name" /></th>
-              <th onClick={() => toggleSort('category')}>Category<SortIndicator column="category" /></th>
-              <th onClick={() => toggleSort('classification')}>Type<SortIndicator column="classification" /></th>
-              <th onClick={() => toggleSort('menuPrice')}>Price<SortIndicator column="menuPrice" /></th>
-              <th onClick={() => toggleSort('foodCost')}>Cost<SortIndicator column="foodCost" /></th>
-              <th onClick={() => toggleSort('contributionMargin')}>Margin<SortIndicator column="contributionMargin" /></th>
-              <th onClick={() => toggleSort('foodCostPercent')}>Cost %<SortIndicator column="foodCostPercent" /></th>
-              <th onClick={() => toggleSort('unitsSold')}>Units<SortIndicator column="unitsSold" /></th>
-              <th onClick={() => toggleSort('salesMixPercent')}>Mix %<SortIndicator column="salesMixPercent" /></th>
-              <th onClick={() => toggleSort('totalProfit')}>Profit<SortIndicator column="totalProfit" /></th>
-              <th>Action</th>
+              <th scope="col" aria-sort={sortAria('name')} onClick={() => toggleSort('name')}>Name<SortIndicator column="name" /></th>
+              <th scope="col" aria-sort={sortAria('category')} onClick={() => toggleSort('category')}>Category<SortIndicator column="category" /></th>
+              <th scope="col" aria-sort={sortAria('classification')} onClick={() => toggleSort('classification')}>Type<SortIndicator column="classification" /></th>
+              <th scope="col" aria-sort={sortAria('menuPrice')} className="text-right" onClick={() => toggleSort('menuPrice')}>Price<SortIndicator column="menuPrice" /></th>
+              <th scope="col" aria-sort={sortAria('foodCost')} className="text-right" onClick={() => toggleSort('foodCost')}>Cost<SortIndicator column="foodCost" /></th>
+              <th scope="col" aria-sort={sortAria('contributionMargin')} className="text-right" onClick={() => toggleSort('contributionMargin')}>Margin<SortIndicator column="contributionMargin" /></th>
+              <th scope="col" aria-sort={sortAria('foodCostPercent')} className="text-right hidden lg:table-cell" onClick={() => toggleSort('foodCostPercent')}>Cost %<SortIndicator column="foodCostPercent" /></th>
+              <th scope="col" aria-sort={sortAria('unitsSold')} className="text-right" onClick={() => toggleSort('unitsSold')}>Units<SortIndicator column="unitsSold" /></th>
+              <th scope="col" aria-sort={sortAria('salesMixPercent')} className="text-right hidden lg:table-cell" onClick={() => toggleSort('salesMixPercent')}>Mix %<SortIndicator column="salesMixPercent" /></th>
+              <th scope="col" aria-sort={sortAria('totalProfit')} className="text-right" onClick={() => toggleSort('totalProfit')}>Profit<SortIndicator column="totalProfit" /></th>
+              <th scope="col">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -123,15 +129,15 @@ export default function ItemDataTable({ items, categories }: Props) {
                     {CLASSIFICATION_LABELS[item.classification]}
                   </span>
                 </td>
-                <td>{formatCurrency(item.menuPrice)}</td>
-                <td>{formatCurrency(item.foodCost)}</td>
-                <td className="font-medium">{formatCurrency(item.contributionMargin)}</td>
-                <td className={item.foodCostPercent > 35 ? 'text-red-400' : item.foodCostPercent < 25 ? 'text-green-400' : ''}>
+                <td className="num">{formatCurrency(item.menuPrice)}</td>
+                <td className="num">{formatCurrency(item.foodCost)}</td>
+                <td className="num font-medium">{formatCurrency(item.contributionMargin)}</td>
+                <td className={`num hidden lg:table-cell ${item.foodCostPercent > 35 ? 'text-red-400' : item.foodCostPercent < 25 ? 'text-green-400' : ''}`}>
                   {formatPercent(item.foodCostPercent)}
                 </td>
-                <td>{item.unitsSold}</td>
-                <td>{formatPercent(item.salesMixPercent)}</td>
-                <td className="font-medium" style={{ color: CLASSIFICATION_COLORS[item.classification] }}>
+                <td className="num">{item.unitsSold}</td>
+                <td className="num hidden lg:table-cell">{formatPercent(item.salesMixPercent)}</td>
+                <td className="num font-medium" style={{ color: CLASSIFICATION_COLORS[item.classification] }}>
                   {formatCurrency(item.totalProfit)}
                 </td>
                 <td className="text-xs text-steel max-w-[200px]">{item.recommendedAction}</td>
@@ -139,6 +145,53 @@ export default function ItemDataTable({ items, categories }: Props) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card view — shown only on small screens */}
+      <div className="sm:hidden space-y-3">
+        {filteredAndSorted.map(item => (
+          <div
+            key={item.id}
+            className="bg-navy-light/50 border border-navy-border rounded-lg p-4"
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <div className="font-medium text-white">{item.name}</div>
+                <div className="text-xs text-steel">{item.category}</div>
+              </div>
+              <span
+                className="classification-badge text-[10px]"
+                style={{
+                  backgroundColor: CLASSIFICATION_COLORS[item.classification] + '20',
+                  color: CLASSIFICATION_COLORS[item.classification],
+                }}
+              >
+                {CLASSIFICATION_LABELS[item.classification]}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <div className="text-[10px] text-steel uppercase tracking-wider">Price</div>
+                <div className="font-mono tabular-nums">{formatCurrency(item.menuPrice)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-steel uppercase tracking-wider">Margin</div>
+                <div className="font-mono tabular-nums font-medium">{formatCurrency(item.contributionMargin)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-steel uppercase tracking-wider">Profit</div>
+                <div className="font-mono tabular-nums font-medium" style={{ color: CLASSIFICATION_COLORS[item.classification] }}>
+                  {formatCurrency(item.totalProfit)}
+                </div>
+              </div>
+            </div>
+            {item.recommendedAction && (
+              <div className="mt-2 pt-2 border-t border-navy-border text-xs text-steel">
+                {item.recommendedAction}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {filteredAndSorted.length === 0 && (

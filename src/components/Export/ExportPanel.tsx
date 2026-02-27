@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { MenuItem, ProjectData, CLASSIFICATION_LABELS } from '@/lib/types'
 import { formatCurrency, formatPercent } from '@/lib/calculations'
 import { exportProjectJSON, importProjectJSON } from '@/lib/storage'
+import { useToast } from '@/components/Toast'
 
 interface Props {
   items: MenuItem[]
@@ -12,8 +13,10 @@ interface Props {
 }
 
 export default function ExportPanel({ items, project, onLoadProject }: Props) {
+  const { showToast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importStatus, setImportStatus] = useState<string>('')
+  const [generatingPDF, setGeneratingPDF] = useState(false)
 
   function exportCSV() {
     const headers = [
@@ -38,11 +41,13 @@ export default function ExportPanel({ items, project, onLoadProject }: Props) {
 
     const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n')
     downloadFile(csv, 'menu-analysis.csv', 'text/csv')
+    showToast('CSV exported')
   }
 
   function exportJSON() {
     const json = exportProjectJSON(project)
     downloadFile(json, 'menu-engineering-project.json', 'application/json')
+    showToast('Project saved')
   }
 
   function handleImportJSON(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,11 +60,9 @@ export default function ExportPanel({ items, project, onLoadProject }: Props) {
       const imported = importProjectJSON(text)
       if (imported) {
         onLoadProject(imported)
-        setImportStatus(`Loaded ${imported.items.length} items`)
-        setTimeout(() => setImportStatus(''), 3000)
+        showToast(`Loaded ${imported.items.length} items`)
       } else {
-        setImportStatus('Invalid project file')
-        setTimeout(() => setImportStatus(''), 3000)
+        showToast('Invalid project file', 'error')
       }
     }
     reader.readAsText(file)
@@ -67,6 +70,7 @@ export default function ExportPanel({ items, project, onLoadProject }: Props) {
   }
 
   async function exportPDF() {
+    setGeneratingPDF(true)
     try {
       const { default: jsPDF } = await import('jspdf')
       const doc = new jsPDF()
@@ -212,8 +216,12 @@ export default function ExportPanel({ items, project, onLoadProject }: Props) {
       )
 
       doc.save('menu-engineering-report.pdf')
+      showToast('PDF report downloaded')
     } catch (e) {
       console.error('PDF generation failed:', e)
+      showToast('PDF generation failed', 'error')
+    } finally {
+      setGeneratingPDF(false)
     }
   }
 
@@ -229,10 +237,10 @@ export default function ExportPanel({ items, project, onLoadProject }: Props) {
         <button
           className="btn-outline flex flex-col items-center gap-2 py-4"
           onClick={exportPDF}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || generatingPDF}
         >
           <span className="text-xl">📄</span>
-          <span>Download PDF Report</span>
+          <span>{generatingPDF ? 'Generating...' : 'Download PDF Report'}</span>
         </button>
 
         <button
@@ -265,7 +273,7 @@ export default function ExportPanel({ items, project, onLoadProject }: Props) {
 
       <div className="mt-4 flex items-center gap-4">
         <button
-          className="text-sm text-gold hover:text-white transition-colors"
+          className="btn-outline text-xs py-2"
           onClick={() => fileInputRef.current?.click()}
         >
           Load Project File
